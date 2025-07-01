@@ -291,7 +291,7 @@ const resetPassword = async (req, res) => {
 
 // Google OAuth login
 const admin = require('firebase-admin');
-const User = require('../models/User');
+
 const { generateToken, storeSession } = require('../middleware/auth');
 
 const googleLogin = async (req, res) => {
