@@ -49,8 +49,8 @@ const Login = () => {
   const handleGoogleLogin = async () => {
   try {
     setLoading(true);
-    const resultPopup = await signInWithPopup(auth, provider);
-    const idToken = await result.user.getIdToken();
+    const popupResult = await signInWithPopup(auth, provider); // ✅ renamed
+    const idToken = await popupResult.user.getIdToken();
 
     const response = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/google`, {
       method: "POST",
@@ -61,12 +61,12 @@ const Login = () => {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Google login failed");
 
-    const resultLogin = await googleLogin(idToken);
-if (result.success) {
-  navigate(from, { replace: true });
-} else {
-  setError(result.error || "Google login failed");
-}
+    const authResult = await googleLogin(idToken); // ✅ renamed
+    if (authResult.success) {
+      navigate(from, { replace: true });
+    } else {
+      setError(authResult.error || "Google login failed");
+    }
   } catch (err) {
     console.error(err);
     setError(err.message || "Something went wrong");
@@ -74,6 +74,7 @@ if (result.success) {
     setLoading(false);
   }
 };
+
 
 
 
