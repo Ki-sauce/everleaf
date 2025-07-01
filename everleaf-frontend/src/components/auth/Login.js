@@ -16,7 +16,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -61,9 +61,12 @@ const Login = () => {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Google login failed");
 
-    await loginWithToken(data.token, data.user); // ✅ This is correct
-    navigate(from, { replace: true });
-
+    const result = await googleLogin(idToken);
+if (result.success) {
+  navigate(from, { replace: true });
+} else {
+  setError(result.error || "Google login failed");
+}
   } catch (err) {
     console.error(err);
     setError(err.message || "Something went wrong");
