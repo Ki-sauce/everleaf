@@ -408,6 +408,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginWithToken = async (token, userData) => {
+  try {
+    Cookies.set('token', token, { expires: 7 });
+    setUser(userData);
+    console.log('✅ loginWithToken(): Token saved, user set');
+    return { success: true };
+  } catch (err) {
+    console.error('❌ loginWithToken error:', err);
+    return { success: false, error: 'Login failed' };
+  }
+};
+
+
   const value = {
     user,
     loading,
@@ -418,6 +431,7 @@ export const AuthProvider = ({ children }) => {
     forgotPassword,
     resetPassword,
     googleLogin,
+    loginWithToken,
     retryConnection,
     api
   };
