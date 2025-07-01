@@ -63,6 +63,7 @@ const Login = () => {
 
     // Assuming your login context accepts token and user
     localStorage.setItem("authToken", data.token);
+    await login(data.token, data.user); // Or loginWithToken()
     navigate(from, { replace: true });
   } catch (err) {
     console.error(err);
