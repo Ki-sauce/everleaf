@@ -2,11 +2,10 @@ const { query } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
 class User {
-  // Create a new project
-  // Create a new user
+  // Create a new user (email/password or Google OAuth)
   static async create(userData) {
-    const { email, password, firstName, lastName, institution, googleId } = userData;
-    
+    const { email, password, firstName, lastName, institution, googleId, avatarUrl } = userData;
+
     // Hash password if provided (not needed for Google OAuth)
     let passwordHash = null;
     if (password) {
@@ -14,10 +13,41 @@ class User {
     }
 
     const result = await query(`
-      INSERT INTO users (email, password_hash, first_name, last_name, institution, google_id, email_verified)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id, email, first_name, last_name, institution, role, google_id, email_verified, created_at
-    `, [email, passwordHash, firstName, lastName, institution, googleId, googleId ? true : false]);
+      INSERT INTO users (
+        email, password_hash, first_name, last_name, institution, 
+        google_id, email_verified, avatar_url
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id, email, first_name, last_name, institution, role, google_id, avatar_url, email_verified, created_at
+    `, [
+      email,
+      passwordHash,
+      firstName,
+      lastName,
+      institution || null,
+      googleId || null,
+      googleId ? true : false,
+      avatarUrl || null
+    ]);
+
+    return result.rows[0];
+  }
+
+  // Create a new user via Google OAuth
+  static async createGoogleUser({ email, firstName, lastName, googleId, avatarUrl }) {
+    const result = await query(`
+      INSERT INTO users (
+        email, first_name, last_name, google_id, email_verified, avatar_url
+      )
+      VALUES ($1, $2, $3, $4, true, $5)
+      RETURNING id, email, first_name, last_name, institution, role, google_id, avatar_url, email_verified, created_at
+    `, [
+      email,
+      firstName,
+      lastName,
+      googleId,
+      avatarUrl
+    ]);
 
     return result.rows[0];
   }
@@ -26,7 +56,7 @@ class User {
   static async findByEmail(email) {
     const result = await query(`
       SELECT id, email, password_hash, first_name, last_name, institution, role, 
-            google_id, email_verified, last_login, created_at, updated_at
+             google_id, avatar_url, email_verified, last_login, created_at, updated_at
       FROM users 
       WHERE email = $1
     `, [email]);
@@ -38,7 +68,7 @@ class User {
   static async findById(id) {
     const result = await query(`
       SELECT id, email, first_name, last_name, institution, role, 
-             google_id, email_verified, last_login, created_at, updated_at
+             google_id, avatar_url, email_verified, last_login, created_at, updated_at
       FROM users 
       WHERE id = $1
     `, [id]);
@@ -50,7 +80,7 @@ class User {
   static async findByGoogleId(googleId) {
     const result = await query(`
       SELECT id, email, first_name, last_name, institution, role, 
-             google_id, email_verified, last_login, created_at, updated_at
+             google_id, avatar_url, email_verified, last_login, created_at, updated_at
       FROM users 
       WHERE google_id = $1
     `, [googleId]);
@@ -127,7 +157,7 @@ class User {
       UPDATE users 
       SET ${fields.join(', ')}
       WHERE id = $${paramCount}
-      RETURNING id, email, first_name, last_name, institution, role, email_verified
+      RETURNING id, email, first_name, last_name, institution, role, avatar_url, email_verified
     `, values);
 
     return result.rows[0];
@@ -167,7 +197,7 @@ class User {
   static async getAllUsers(limit = 50, offset = 0) {
     const result = await query(`
       SELECT id, email, first_name, last_name, institution, role, 
-             email_verified, last_login, created_at
+             avatar_url, email_verified, last_login, created_at
       FROM users 
       ORDER BY created_at DESC
       LIMIT $1 OFFSET $2
