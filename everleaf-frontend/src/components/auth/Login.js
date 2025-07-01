@@ -46,12 +46,15 @@ const Login = () => {
     setLoading(false);
   };
 
-  const handleGoogleLogin = async () => {
+ const handleGoogleLogin = async () => {
   try {
     setLoading(true);
-    const popupResult = await signInWithPopup(auth, provider); // ✅ renamed
+
+    // Firebase popup login
+    const popupResult = await signInWithPopup(auth, provider);
     const idToken = await popupResult.user.getIdToken();
 
+    // Call your backend to verify token & login
     const response = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -59,14 +62,19 @@ const Login = () => {
     });
 
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Google login failed");
 
-    const authResult = await googleLogin(idToken); // ✅ renamed
-    if (authResult.success) {
-      navigate(from, { replace: true });
-    } else {
-      setError(authResult.error || "Google login failed");
+    if (!response.ok) {
+      throw new Error(data.message || "Google login failed");
     }
+
+    // At this point: backend returned token + user info
+    // Store token, login the user
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+
+    // Redirect
+    navigate(from || "/", { replace: true });
+
   } catch (err) {
     console.error(err);
     setError(err.message || "Something went wrong");
