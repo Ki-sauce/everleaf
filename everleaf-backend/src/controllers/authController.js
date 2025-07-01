@@ -290,40 +290,37 @@ const resetPassword = async (req, res) => {
 };
 
 // Google OAuth login
-const admin = require('../config/firebase');
+const admin = require('firebase-admin');
 
 const googleLogin = async (req, res) => {
   try {
     const { idToken } = req.body;
 
-    if (!idToken) {
-      return res.status(400).json({ success: false, message: 'Missing Google ID token' });
-    }
-
+    // Verify token with Firebase Admin SDK
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const { email, name, picture, uid } = decodedToken;
+    const { uid, email, name, picture } = decodedToken;
 
-    let user = await User.findByEmail(email);
+    // Check if user exists
+    let user = await User.findByGoogleId(uid);
 
+    // If not, create user
     if (!user) {
-      // Create user if not found
-      user = await User.create({
+      user = await User.createGoogleUser({
         email,
         firstName: name?.split(' ')[0] || '',
-        lastName: name?.split(' ').slice(1).join(' ') || '',
-        avatar_url: picture,
-        google_uid: uid,
-        password: null // Google users don’t have password
+        lastName: name?.split(' ')[1] || '',
+        googleId: uid,
+        avatarUrl: picture
       });
     }
 
-    // Generate session token
+    // Generate token and session
     const token = generateToken(user);
     await storeSession(user.id, token, req.get('User-Agent'), req.ip);
 
     const { password_hash, ...userResponse } = user;
 
-    return res.json({
+    res.json({
       success: true,
       message: 'Google login successful',
       token,
@@ -332,12 +329,13 @@ const googleLogin = async (req, res) => {
 
   } catch (error) {
     console.error('Google login error:', error);
-    return res.status(401).json({
+    res.status(500).json({
       success: false,
-      message: 'Invalid or expired Google ID token'
+      message: 'Google login failed'
     });
   }
 };
+
 
 // Change password (for authenticated users)
 const changePassword = async (req, res) => {
