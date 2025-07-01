@@ -73,7 +73,10 @@ const Login = () => {
     localStorage.setItem("user", JSON.stringify(data.user));
 
     // Redirect
-    navigate(from || "/", { replace: true });
+    await googleLogin(data.token);
+
+    // ✅ Redirect
+    navigate(from || "/dashboard", { replace: true });;
 
   } catch (err) {
     console.error(err);
