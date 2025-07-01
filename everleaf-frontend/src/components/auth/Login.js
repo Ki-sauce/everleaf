@@ -61,10 +61,9 @@ const Login = () => {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Google login failed");
 
-    // Assuming your login context accepts token and user
-    localStorage.setItem("authToken", data.token);
-    await login(data.token, data.user); // Or loginWithToken()
+    await loginWithToken(data.token, data.user); // ✅ This is correct
     navigate(from, { replace: true });
+
   } catch (err) {
     console.error(err);
     setError(err.message || "Something went wrong");
@@ -72,6 +71,7 @@ const Login = () => {
     setLoading(false);
   }
 };
+
 
 
   return (
