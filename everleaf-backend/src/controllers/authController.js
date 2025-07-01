@@ -290,17 +290,51 @@ const resetPassword = async (req, res) => {
 };
 
 // Google OAuth login
+const admin = require('../config/firebase');
+
 const googleLogin = async (req, res) => {
   try {
-    return res.status(501).json({
-      success: false,
-      message: 'Google OAuth not implemented yet'
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({ success: false, message: 'Missing Google ID token' });
+    }
+
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const { email, name, picture, uid } = decodedToken;
+
+    let user = await User.findByEmail(email);
+
+    if (!user) {
+      // Create user if not found
+      user = await User.create({
+        email,
+        firstName: name?.split(' ')[0] || '',
+        lastName: name?.split(' ').slice(1).join(' ') || '',
+        avatar_url: picture,
+        google_uid: uid,
+        password: null // Google users don’t have password
+      });
+    }
+
+    // Generate session token
+    const token = generateToken(user);
+    await storeSession(user.id, token, req.get('User-Agent'), req.ip);
+
+    const { password_hash, ...userResponse } = user;
+
+    return res.json({
+      success: true,
+      message: 'Google login successful',
+      token,
+      user: userResponse
     });
+
   } catch (error) {
     console.error('Google login error:', error);
-    res.status(500).json({
+    return res.status(401).json({
       success: false,
-      message: 'Google login failed'
+      message: 'Invalid or expired Google ID token'
     });
   }
 };
