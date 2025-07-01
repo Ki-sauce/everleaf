@@ -11,7 +11,7 @@ router.get('/verify', verifyToken, authController.verifyToken);
 router.post('/logout', verifyToken, authController.logout);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
-router.post('/google', authController.googleLogin);
+router.post('/auth/google', authController.googleLogin);
 router.post('/change-password', verifyToken, authController.changePassword);
 
 module.exports = router;
