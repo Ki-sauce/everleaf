@@ -49,7 +49,7 @@ const Login = () => {
   const handleGoogleLogin = async () => {
   try {
     setLoading(true);
-    const result = await signInWithPopup(auth, provider);
+    const resultPopup = await signInWithPopup(auth, provider);
     const idToken = await result.user.getIdToken();
 
     const response = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/google`, {
@@ -61,7 +61,7 @@ const Login = () => {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Google login failed");
 
-    const result = await googleLogin(idToken);
+    const resultLogin = await googleLogin(idToken);
 if (result.success) {
   navigate(from, { replace: true });
 } else {
