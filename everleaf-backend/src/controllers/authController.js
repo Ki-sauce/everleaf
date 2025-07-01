@@ -356,6 +356,45 @@ const googleLogin = async (req, res) => {
 };
 
 
+const { OAuth2Client } = require("google-auth-library");
+const jwt = require("jsonwebtoken");
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+exports.verifyGoogleToken = async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    // Now you can find or create the user in DB
+    const user = await User.findOneAndUpdate(
+      { email: payload.email },
+      {
+        email: payload.email,
+        name: payload.name,
+        picture: payload.picture,
+        // other fields
+      },
+      { upsert: true, new: true }
+    );
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.json({ user, token });
+  } catch (err) {
+    console.error("Google login error", err);
+    res.status(401).json({ error: "Invalid Google token" });
+  }
+};
+
+
 
 // Change password (for authenticated users)
 const changePassword = async (req, res) => {
@@ -407,5 +446,6 @@ module.exports = {
   forgotPassword,
   resetPassword,
   googleLogin,
+  verifyGoogleToken,
   changePassword
 };
