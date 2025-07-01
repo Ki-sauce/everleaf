@@ -289,108 +289,69 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// Google OAuth login
-
+// Google firebase login
+// Ensure Firebase Admin is initialized
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(require('../config/serviceAccountKey.json')),
+  });
+}
 
 const googleLogin = async (req, res) => {
   try {
     const { idToken } = req.body;
     if (!idToken) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing idToken'
-      });
+      return res.status(400).json({ success: false, message: 'Missing idToken' });
     }
 
-    // Verify the token
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const { uid, email, name = '', picture = '' } = decodedToken;
+    // ✅ Verify Firebase ID token
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    const { uid, email, name = '', picture = '' } = decoded;
 
     if (!uid || !email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid token: missing uid or email'
-      });
+      return res.status(400).json({ success: false, message: 'Invalid token payload' });
     }
 
-    // Parse first and last name safely
+    // 🧠 Parse name
     const [firstName, ...rest] = name.trim().split(' ');
-    const lastName = rest.join(' ') || ' ';
+    const lastName = rest.join(' ') || '';
 
-    // Check if user already exists
+    // 🔍 Check if user exists
     let user = await User.findByGoogleId(uid);
 
-    // If user doesn't exist, create one
+    // ➕ Create user if doesn't exist
     if (!user) {
-      // Ensure `User.create()` accepts `avatarUrl` in your model
       user = await User.create({
         email,
-        firstName: firstName || '',
-        lastName: lastName || '',
+        firstName,
+        lastName,
         googleId: uid,
-        avatarUrl: picture
+        avatarUrl: picture,
       });
     }
 
-    // Generate token and store session
+    // 🎟 Generate session token
     const token = generateToken(user);
     await storeSession(user.id, token, req.get('User-Agent'), req.ip);
 
-    // Remove sensitive fields
-    const { password_hash, reset_token, reset_token_expires, ...userResponse } = user;
+    // 🧹 Remove sensitive fields
+    const {
+      password_hash,
+      reset_token,
+      reset_token_expires,
+      ...userResponse
+    } = user;
 
     res.json({
       success: true,
       message: 'Google login successful',
       token,
-      user: userResponse
+      user: userResponse,
     });
 
-  } catch (error) {
-    console.error('Google login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Google login failed'
-    });
-  }
-};
-
-
-const { OAuth2Client } = require("google-auth-library");
-const jwt = require("jsonwebtoken");
-
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-const verifyGoogleToken = async (req, res) => {
-  try {
-    const { idToken } = req.body;
-    const ticket = await client.verifyIdToken({
-      idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-
-    const payload = ticket.getPayload();
-
-    // Now you can find or create the user in DB
-    const user = await User.findOneAndUpdate(
-      { email: payload.email },
-      {
-        email: payload.email,
-        name: payload.name,
-        picture: payload.picture,
-        // other fields
-      },
-      { upsert: true, new: true }
-    );
-
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
-
-    res.json({ user, token });
   } catch (err) {
-    console.error("Google login error", err);
-    res.status(401).json({ error: "Invalid Google token" });
+    console.error('Google login error:', err);
+    res.status(401).json({ success: false, message: 'Google login failed' });
   }
 };
 
@@ -446,6 +407,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   googleLogin,
-  verifyGoogleToken,
   changePassword
 };
