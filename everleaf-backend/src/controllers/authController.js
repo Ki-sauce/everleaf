@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const { generateToken, storeSession, removeSession } = require('../middleware/auth');
 const crypto = require('crypto');
-
+const admin = require('firebase-admin');
 // Register new user
 const signup = async (req, res) => {
   try {
@@ -135,7 +135,7 @@ const adminLogin = async (req, res) => {
     // Update last login
     await User.updateLastLogin(user.id);
 
-    // Generate JWT token
+    // Generate JWT 
     const token = generateToken(user);
 
     // Store session
@@ -290,9 +290,7 @@ const resetPassword = async (req, res) => {
 };
 
 // Google OAuth login
-const admin = require('firebase-admin');
 
-const { generateToken, storeSession } = require('../middleware/auth');
 
 const googleLogin = async (req, res) => {
   try {
