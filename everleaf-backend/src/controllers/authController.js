@@ -291,34 +291,55 @@ const resetPassword = async (req, res) => {
 
 // Google OAuth login
 const admin = require('firebase-admin');
+const User = require('../models/User');
+const { generateToken, storeSession } = require('../middleware/auth');
 
 const googleLogin = async (req, res) => {
   try {
     const { idToken } = req.body;
+    if (!idToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing idToken'
+      });
+    }
 
-    // Verify token with Firebase Admin SDK
+    // Verify the token
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const { uid, email, name, picture } = decodedToken;
+    const { uid, email, name = '', picture = '' } = decodedToken;
 
-    // Check if user exists
+    if (!uid || !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid token: missing uid or email'
+      });
+    }
+
+    // Parse first and last name safely
+    const [firstName, ...rest] = name.trim().split(' ');
+    const lastName = rest.join(' ') || ' ';
+
+    // Check if user already exists
     let user = await User.findByGoogleId(uid);
 
-    // If not, create user
+    // If user doesn't exist, create one
     if (!user) {
-      user = await User.createGoogleUser({
+      // Ensure `User.create()` accepts `avatarUrl` in your model
+      user = await User.create({
         email,
-        firstName: name?.split(' ')[0] || '',
-        lastName: name?.split(' ')[1] || '',
+        firstName: firstName || '',
+        lastName: lastName || '',
         googleId: uid,
         avatarUrl: picture
       });
     }
 
-    // Generate token and session
+    // Generate token and store session
     const token = generateToken(user);
     await storeSession(user.id, token, req.get('User-Agent'), req.ip);
 
-    const { password_hash, ...userResponse } = user;
+    // Remove sensitive fields
+    const { password_hash, reset_token, reset_token_expires, ...userResponse } = user;
 
     res.json({
       success: true,
@@ -335,6 +356,7 @@ const googleLogin = async (req, res) => {
     });
   }
 };
+
 
 
 // Change password (for authenticated users)
